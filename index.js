@@ -76,7 +76,13 @@ Throttle.prototype.rateLimit = function (key, cb) {
     wnd = self.overrides[key].window != null ? self.overrides[key].window : wnd
   }
 
-  if (!rate || !burst) return cb()
+  if (!rate || !burst)
+    return cb(null, false, {
+      limit: burst,
+      rate: rate,
+      remaining: burst,
+      reset: wnd
+    })
 
   self.getter.call(self.table, key, function (err, bucket) {
     if (err) {
@@ -104,10 +110,19 @@ Throttle.prototype.rateLimit = function (key, cb) {
       if (err) {
         err = new Error("Error saving throttle information to table" + err)
       }
-      if (!hasCapacity) {
-        return cb(err, true)
+
+      var metadata = {
+        // The limit before throttling may occur
+        limit: burst,
+        // The rate of token replenishment
+        rate: rate,
+        // The number of tokens remaining
+        remaining: Math.floor(bucket.tokens),
+        // The time, in seconds, when token(s) may be replenished
+        reset: Math.max(0, bucket.time + wnd - Date.now())
       }
-      return cb(err, false)
+
+      return cb(err, !hasCapacity, metadata)
     })
   })
 }

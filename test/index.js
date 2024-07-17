@@ -45,35 +45,58 @@ test("TokenBucket", function (t) {
 })
 
 test("Throttle", function (t) {
-  t.plan(10)
+  t.plan(36)
 
   var throttle = Throttle({rate: 3})
   var i = 0
+  var remaining = 3
   while (i++ < 3) {
     // This is so much cleaner with setImmediate... *sigh 0.8.x*
     setTimeout(function () {
-      throttle.rateLimit("test", function (err, limited) {
+      throttle.rateLimit("test", function (err, limited, metadata) {
         t.notOk(err)
         t.notOk(limited, "Not throttled yet")
+        t.equal(metadata.limit, 3)
+        t.equal(metadata.rate, 3)
+        t.equal(metadata.remaining, --remaining)
+        t.ok(metadata.reset <= 1000)
       })
     }, i * 10)
   }
   setTimeout(function () {
-    throttle.rateLimit("test", function (err, limited) {
+    throttle.rateLimit("test", function (err, limited, metadata) {
       t.notOk(err)
       t.ok(limited, "Should now be throttled.")
+      t.equal(metadata.limit, 3)
+      t.equal(metadata.rate, 3)
+      t.equal(metadata.remaining, 0)
+      t.ok(metadata.reset <= 1000)
     })
   }, 50)
   setTimeout(function () {
-    throttle.rateLimit("test", function (err, limited) {
+    throttle.rateLimit("test", function (err, limited, metadata) {
       t.notOk(err)
       t.notOk(limited, "Throttle should be lifted.")
+      t.equal(metadata.limit, 3)
+      t.equal(metadata.rate, 3)
+      t.equal(metadata.remaining, 0)
+      t.ok(metadata.reset <= 1000)
     })
   }, 400)
+  setTimeout(function () {
+    throttle.rateLimit("test", function (err, limited, metadata) {
+      t.notOk(err)
+      t.notOk(limited)
+      t.equal(metadata.limit, 3)
+      t.equal(metadata.rate, 3)
+      t.ok(metadata.remaining > 0, "Tokens should replenish.")
+      t.ok(metadata.reset <= 1000)
+    })
+  }, 1200)
 })
 
 test("Override", function (t) {
-  t.plan(8)
+  t.plan(24)
 
   var throttle = Throttle({
     rate: 3,
@@ -86,22 +109,30 @@ test("Override", function (t) {
   while (i++ < 3) {
     // This is so much cleaner with setImmediate... *sigh 0.8.x*
     setTimeout(function () {
-      throttle.rateLimit("test", function (err, limited) {
+      throttle.rateLimit("test", function (err, limited, metadata) {
         t.notOk(err)
         t.notOk(limited, "Not throttled yet")
+        t.equal(metadata.limit, 0)
+        t.equal(metadata.rate, 0)
+        t.equal(metadata.remaining, 0)
+        t.equal(metadata.reset, 1000)
       })
     }, i * 10)
   }
   setTimeout(function () {
-    throttle.rateLimit("test", function (err, limited) {
+    throttle.rateLimit("test", function (err, limited, metadata) {
       t.notOk(err)
       t.notOk(limited, "This one never gets throttled.")
+      t.equal(metadata.limit, 0)
+      t.equal(metadata.rate, 0)
+      t.equal(metadata.remaining, 0)
+      t.equal(metadata.reset, 1000)
     })
   }, 50)
 })
 
 test("Override rate only", function (t) {
-  t.plan(8)
+  t.plan(24)
 
   var throttle = Throttle({
     rate: 3,
@@ -114,22 +145,30 @@ test("Override rate only", function (t) {
   while (i++ < 3) {
     // This is so much cleaner with setImmediate... *sigh 0.8.x*
     setTimeout(function () {
-      throttle.rateLimit("test", function (err, limited) {
+      throttle.rateLimit("test", function (err, limited, metadata) {
         t.notOk(err)
         t.notOk(limited, "Not throttled yet")
+        t.equal(metadata.limit, 3)
+        t.equal(metadata.rate, 0)
+        t.equal(metadata.remaining, 3)
+        t.ok(metadata.reset <= 1000)
       })
     }, i * 10)
   }
   setTimeout(function () {
-    throttle.rateLimit("test", function (err, limited) {
+    throttle.rateLimit("test", function (err, limited, metadata) {
       t.notOk(err)
       t.notOk(limited, "This one never gets throttled.")
+      t.equal(metadata.limit, 3)
+      t.equal(metadata.rate, 0)
+      t.equal(metadata.remaining, 3)
+      t.ok(metadata.reset <= 1000)
     })
   }, 50)
 })
 
 test("Override window", function (t) {
-  t.plan(10)
+  t.plan(36)
 
   var throttle = Throttle({
     rate: 1,
@@ -139,86 +178,128 @@ test("Override window", function (t) {
     }
   })
   var i = 0
+  var remaining = 3
   while (i++ < 3) {
     // This is so much cleaner with setImmediate... *sigh 0.8.x*
     setTimeout(function () {
-      throttle.rateLimit("test", function (err, limited) {
+      throttle.rateLimit("test", function (err, limited, metadata) {
         t.notOk(err)
         t.notOk(limited, "Not throttled yet")
+        t.equal(metadata.limit, 3)
+        t.equal(metadata.rate, 1)
+        t.equal(metadata.remaining, --remaining)
+        t.ok(metadata.reset <= 100)
       })
     }, i * 10)
   }
   setTimeout(function () {
-    throttle.rateLimit("test", function (err, limited) {
+    throttle.rateLimit("test", function (err, limited, metadata) {
       t.notOk(err)
       t.ok(limited, "Should now be throttled.")
+      t.equal(metadata.limit, 3)
+      t.equal(metadata.rate, 1)
+      t.equal(metadata.remaining, 0)
+      t.ok(metadata.reset <= 100)
     })
   }, 50)
   setTimeout(function () {
-    throttle.rateLimit("test", function (err, limited) {
+    throttle.rateLimit("test", function (err, limited, metadata) {
       t.notOk(err)
       t.notOk(limited, "Throttle should be lifted.")
+      t.equal(metadata.limit, 3)
+      t.equal(metadata.rate, 1)
+      t.equal(metadata.remaining, 0)
+      t.ok(metadata.reset <= 100)
     })
   }, 150)
+  setTimeout(function () {
+    throttle.rateLimit("test", function (err, limited, metadata) {
+      t.notOk(err)
+      t.notOk(limited)
+      t.equal(metadata.limit, 3)
+      t.equal(metadata.rate, 1)
+      t.ok(metadata.remaining > 0, "Tokens should replenish.")
+      t.ok(metadata.reset <= 100)
+    })
+  }, 350)
 })
 
 test("Different throttle window", function (t) {
-  t.plan(10)
+  t.plan(36)
 
   var throttle = Throttle({rate: 1, burst: 3, window: 100})
   var i = 0
+  var remaining = 3
   while (i++ < 3) {
     // This is so much cleaner with setImmediate... *sigh 0.8.x*
     setTimeout(function () {
-      throttle.rateLimit("test", function (err, limited) {
+      throttle.rateLimit("test", function (err, limited, metadata) {
         t.notOk(err)
         t.notOk(limited, "Not throttled yet")
+        t.equal(metadata.limit, 3)
+        t.equal(metadata.rate, 1)
+        t.equal(metadata.remaining, --remaining)
+        t.ok(metadata.reset <= 100)
       })
     }, i * 10)
   }
   setTimeout(function () {
-    throttle.rateLimit("test", function (err, limited) {
+    throttle.rateLimit("test", function (err, limited, metadata) {
       t.notOk(err)
       t.ok(limited, "Should now be throttled.")
+      t.equal(metadata.limit, 3)
+      t.equal(metadata.rate, 1)
+      t.equal(metadata.remaining, 0)
+      t.ok(metadata.reset <= 100)
     })
   }, 50)
   setTimeout(function () {
-    throttle.rateLimit("test", function (err, limited) {
+    throttle.rateLimit("test", function (err, limited, metadata) {
       t.notOk(err)
       t.notOk(limited, "Throttle should be lifted.")
+      t.equal(metadata.limit, 3)
+      t.equal(metadata.rate, 1)
+      t.equal(metadata.remaining, 0)
+      t.ok(metadata.reset <= 100)
     })
   }, 150)
+  setTimeout(function () {
+    throttle.rateLimit("test", function (err, limited, metadata) {
+      t.notOk(err)
+      t.notOk(limited)
+      t.equal(metadata.limit, 3)
+      t.equal(metadata.rate, 1)
+      t.ok(metadata.remaining > 0, "Tokens should replenish.")
+      t.ok(metadata.reset <= 100)
+    })
+  }, 350)  
 })
 
 test("Bad Options", function (t) {
   t.plan(4)
 
-  t.throws(
-    function () {
-      Throttle()
-    }, "No options")
+  t.throws(function () {
+    Throttle()
+  }, "No options")
 
   function HashTable() {}
   HashTable.prototype.put = function (key) {}
   HashTable.prototype.get = function () {}
-  t.throws(
-    function () {
-      Throttle({rate: 1, burst: 3, window: 100, tokensTable: new HashTable()})
-    }, "Bad table")
+  t.throws(function () {
+    Throttle({rate: 1, burst: 3, window: 100, tokensTable: new HashTable()})
+  }, "Bad table")
 
-  t.throws(
-    function () {
-      Throttle({burst: 1})
-    }, "Missing rate")
+  t.throws(function () {
+    Throttle({burst: 1})
+  }, "Missing rate")
 
-  t.throws(
-    function () {
-      Throttle({rate: "blue"})
-    }, "Bad rate type")
+  t.throws(function () {
+    Throttle({rate: "blue"})
+  }, "Bad rate type")
 })
 
 test("Different Token Table", function (t) {
-  t.plan(20)
+  t.plan(40)
 
   function HashTable() {}
   HashTable.prototype.put = function (key, bucket) {
@@ -229,65 +310,100 @@ test("Different Token Table", function (t) {
     t.ok(1, "Running custom get")
     return this.key
   }
-  var throttle = Throttle({rate: 1, burst: 3, window: 100, tokensTable: new HashTable()})
+  var throttle = Throttle({
+    rate: 1,
+    burst: 3,
+    window: 100,
+    tokensTable: new HashTable()
+  })
   var i = 0
+  var remaining = 3
   while (i++ < 3) {
     // This is so much cleaner with setImmediate... *sigh 0.8.x*
     setTimeout(function () {
-      throttle.rateLimit("test", function (err, limited) {
+      throttle.rateLimit("test", function (err, limited, metadata) {
         t.notOk(err)
         t.notOk(limited, "Not throttled yet")
+        t.equal(metadata.limit, 3)
+        t.equal(metadata.rate, 1)
+        t.equal(metadata.remaining, --remaining)
+        t.ok(metadata.reset <= 100)
       })
     }, i * 10)
   }
   setTimeout(function () {
-    throttle.rateLimit("test", function (err, limited) {
+    throttle.rateLimit("test", function (err, limited, metadata) {
       t.notOk(err)
       t.ok(limited, "Should now be throttled.")
+      t.equal(metadata.limit, 3)
+      t.equal(metadata.rate, 1)
+      t.equal(metadata.remaining, 0)
+      t.ok(metadata.reset <= 100)
     })
   }, 50)
   setTimeout(function () {
-    throttle.rateLimit("test", function (err, limited) {
+    throttle.rateLimit("test", function (err, limited, metadata) {
       t.notOk(err)
       t.notOk(limited, "Throttle should be lifted.")
+      t.equal(metadata.limit, 3)
+      t.equal(metadata.rate, 1)
+      t.equal(metadata.remaining, 0)
+      t.ok(metadata.reset <= 100)
     })
   }, 150)
 })
 
 test("Two Throttle instances", function (t) {
-  t.plan(12)
+  t.plan(36)
 
   var throttle1 = Throttle({rate: 3})
   var throttle2 = Throttle({rate: 1})
   var i = 0
+  var remaining = 3
   // Test throttle2
   // This is so much cleaner with setImmediate... *sigh 0.8.x*
   setTimeout(function () {
-    throttle2.rateLimit("test", function (err, limited) {
+    throttle2.rateLimit("test", function (err, limited, metadata) {
       t.notOk(err)
       t.notOk(limited, "throttle2 not throttled yet")
+      t.equal(metadata.limit, 1)
+      t.equal(metadata.rate, 1)
+      t.equal(metadata.remaining, 0)
+      t.ok(metadata.reset <= 1000)
     })
   }, 0)
   setTimeout(function () {
-    throttle2.rateLimit("test", function (err, limited) {
+    throttle2.rateLimit("test", function (err, limited, metadata) {
       t.notOk(err)
       t.ok(limited, "throttle2 should now be throttled")
+      t.equal(metadata.limit, 1)
+      t.equal(metadata.rate, 1)
+      t.equal(metadata.remaining, 0)
+      t.ok(metadata.reset <= 1000)
     })
   }, 10)
   // Make sure throttle1 is independent of throttle2
   while (i++ < 3) {
     // This is so much cleaner with setImmediate... *sigh 0.8.x*
     setTimeout(function () {
-      throttle1.rateLimit("test", function (err, limited) {
+      throttle1.rateLimit("test", function (err, limited, metadata) {
         t.notOk(err)
         t.notOk(limited, "throttle1 not throttled yet")
+        t.equal(metadata.limit, 3)
+        t.equal(metadata.rate, 3)
+        t.equal(metadata.remaining, --remaining)
+        t.ok(metadata.reset <= 1000)
       })
     }, 20 + i)
   }
   setTimeout(function () {
-    throttle1.rateLimit("test", function (err, limited) {
+    throttle1.rateLimit("test", function (err, limited, metadata) {
       t.notOk(err)
       t.ok(limited, "throttle1 should now be throttled")
+      t.equal(metadata.limit, 3)
+      t.equal(metadata.rate, 3)
+      t.equal(metadata.remaining, 0)
+      t.ok(metadata.reset <= 1000)
     })
   }, 50)
 })
