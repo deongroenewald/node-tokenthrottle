@@ -118,7 +118,7 @@ Throttle.prototype.rateLimit = function (key, cb) {
         rate: rate,
         // The number of tokens remaining
         remaining: Math.floor(bucket.tokens),
-        // The time, in seconds, when token(s) may be replenished
+        // The time, in milliseconds, when token(s) may be replenished
         reset: Math.max(0, bucket.time + wnd - Date.now())
       }
 
